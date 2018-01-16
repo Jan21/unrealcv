@@ -521,3 +521,36 @@ USceneCaptureComponent2D* UGTCaptureComponent::GetCaptureComponent(FString Mode)
 	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
     return CaptureComponent;
 }
+
+
+void UGTCaptureComponent::SetCapturePostProcessProperty(FString Mode, FName PropName, float Value, FName OverrideName)
+{
+	check(CaptureComponents.Num() != 0);
+	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
+	UProperty* Property = CaptureComponent->PostProcessSettings.StaticStruct()->FindPropertyByName(PropName);
+	if (UNumericProperty *NumericProperty = Cast<UNumericProperty>(Property))
+	{
+		if (UFloatProperty *FloatProperty = Cast<UFloatProperty>(NumericProperty))
+		{
+			void* ValuePtr = FloatProperty->ContainerPtrToValuePtr<void>(&(CaptureComponent->PostProcessSettings));
+			FloatProperty->SetFloatingPointPropertyValue(ValuePtr, Value);
+
+		}
+	}
+	UProperty* BProperty =CaptureComponent->PostProcessSettings.StaticStruct()->FindPropertyByName(OverrideName);
+	if (UBoolProperty *BoolProperty = Cast<UBoolProperty>(BProperty))
+	{
+			  void* ValuePtr = BoolProperty->ContainerPtrToValuePtr<void>(&(CaptureComponent->PostProcessSettings));
+			  BoolProperty->SetPropertyValue(ValuePtr, true);
+	}
+	
+}
+
+void UGTCaptureComponent::SetCameraFOV(float Value)
+{
+	check(CaptureComponents.Num() != 0);
+	for (auto It = CaptureComponents.CreateConstIterator(); It; ++It)
+	{
+		It.Value()->FOVAngle=Value;
+	}
+}

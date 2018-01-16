@@ -23,12 +23,15 @@ public class UnrealcvBuildConfig
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
+                "Editor/UnrealEd/Classes/Factories",
 				"UnrealCV/Private/Commands",
 				"UnrealCV/Private/libs", // For 3rd-party libs
 			}
 		);
 
 		PublicDependencyModuleNames.AddRange(new string[] {
+            "Json",
+            "JsonUtilities",
 			"Core",
 			"CoreUObject",
 			"Engine",
