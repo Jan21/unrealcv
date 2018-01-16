@@ -38,7 +38,8 @@ public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override; // TODO
 
 	void SetFOVAngle(float FOV);
-
+	void SetCapturePostProcessProperty(FString Mode, FName PropName, float Value, FName OverrideName);
+	void SetCameraFOV(float Value);
 	/** Save image to a file */
 	FAsyncRecord* Capture(FString Mode, FString Filename);
 
