@@ -103,6 +103,10 @@ FExecStatus FModelCommandHandler::LoadSceneFromJson(const TArray<FString>& Path)
 		TArray <TSharedPtr<FJsonValue>> matArr = GeomInfo->GetArrayField(TEXT("materials"));
 		FString Label = GeomInfo->GetStringField(TEXT("label"));
 		UStaticMeshComponent* component = LoadModel(ModelPathStr, NewLocation, NewRotation, Label); //returns static mesh component so you can aply mat to it.
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 		LoadMatForObj(matArr, component);  //set the materials for the static mesh component
 		}
 
@@ -112,7 +116,11 @@ FExecStatus FModelCommandHandler::LoadSceneFromJson(const TArray<FString>& Path)
 		CreateLight(liInfo);
 	}
 
+<<<<<<< Updated upstream
 
+=======
+	FObjectPainter::Get().Reset();
+>>>>>>> Stashed changes
 	return FExecStatus::OK();
 
 
@@ -187,7 +195,11 @@ UTexture2D* LoadTexture2D_FromFile(const FString& FullFilePath, bool& IsValid)
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
+<<<<<<< Updated upstream
 	IImageWrapperPtr ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
+=======
+	IImageWrapperPtr ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+>>>>>>> Stashed changes
 
 	//Load From File
 	TArray<uint8> RawFileData;
@@ -299,6 +311,10 @@ FExecStatus FModelCommandHandler::LoadMatForObj(const TArray <TSharedPtr<FJsonVa
 			UTexture2D* texture = LoadTexture2D_FromFile(PathToLoad,IsValid);
 			TheMaterial_Dyn->SetTextureParameterValue(FName(*texInfo->GetStringField(TEXT("name"))), texture);
 		}
+<<<<<<< Updated upstream
+=======
+		TheMaterial_Dyn->TwoSided = 1;
+>>>>>>> Stashed changes
 		component->SetMaterial(mat, TheMaterial_Dyn);
 	}
 	return FExecStatus::OK();
