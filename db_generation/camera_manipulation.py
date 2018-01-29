@@ -1,5 +1,7 @@
 import numpy as np
-from math import cos, sin, radians
+from unrealcv import client
+from unrealcv.util import read_png
+
 np.set_printoptions(precision=3, suppress=True)
 
 
@@ -37,6 +39,41 @@ def get_rotation_z_axis(theta):
          [np.sin(theta), np.cos(theta), 0, 0],
          [0, 0, 1, 0],
          [0, 0, 0, 1]], dtype=np.float32)
+
+
+def rotate_around_object(obj_loc: tuple, d: tuple, angle: tuple, y_max: int, view_modes: list)-> dict:
+    """
+    Rotates camera around obj_loc and return images from 360 view around for each view mode. Client has to be connected.
+    :param obj_loc: 3-tuple, coordinates of the object location (x,y,z)
+    :param d: 2-tuple, distance of camera from obj_loc (distance on x axis, distance on z axis)
+    :param angle: 2-tuple, angle step by which is camera rotated around z and y axis (z step, y step)
+    :param y_max: top y angle value by which can camera be rotated above object
+    :param view_modes: list of strings representing requested view modes. Allowed are lit, normal, depth, object_mask.
+    :return: Dictionary with given view modes as keys and lists of images as values.
+    """
+    output = {}
+    for view_mode in view_modes:
+        output[view_mode] = []
+    t = get_translation_matrix([-obj_loc[0], -obj_loc[1], -obj_loc[2]])
+    t_neg = get_translation_matrix([obj_loc[0], obj_loc[1], obj_loc[2]])
+    cam_start_loc = [obj_loc[0] - d[0], obj_loc[1], obj_loc[2] + d[1]]
+    loc_orig = np.matmul(t, np.array([[cam_start_loc[0]], [cam_start_loc[1]], [cam_start_loc[2]], [1.0]]))
+    h_rot = list(
+        zip([get_rotation_z_axis(x) for x in range(0, 360, angle[0])], [x for x in range(0, 360, angle[0])]))
+    y_angles = [y for y in range(0, -y_max, -angle[1])]
+    v_rot = list(zip([get_rotation_y_axis(y) for y in range(0, len(y_angles) * angle[1], angle[1])], y_angles))
+    for v_params in v_rot:
+        for h_params in h_rot:
+            new_loc = np.round(np.matmul(t_neg, np.matmul(h_params[0], np.matmul(v_params[0], loc_orig))))
+            assert client.request('vset /camera/0/rotation {} {} {}'.format(v_params[1], h_params[1] % 360, 0)) == 'ok', \
+                'Did not get \'ok\' response from urealcv server for setting camera rotation'
+            assert client.request('vset /camera/0/location {} {} {}'.format(new_loc[0][0],
+                                                                            new_loc[1][0],
+                                                                            new_loc[2][0])) == 'ok', \
+                'Did not get \'ok\' response from urealcv server for setting camera location'
+            for view_mode in view_modes:
+                output[view_mode].append(read_png(client.request('vget /camera/0/' + view_mode + ' png')))
+    return output
 
 
 if __name__ == "__main__":
