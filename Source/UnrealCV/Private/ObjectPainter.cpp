@@ -56,6 +56,7 @@ FExecStatus FObjectPainter::GetActorColor(FString ActorId)
 // TODO: This should be moved to command handler
 FExecStatus FObjectPainter::GetObjectList()
 {
+
 	TArray<FString> Keys;
 	this->Id2Actor.GetKeys(Keys);
 	FString Message = "";
@@ -109,4 +110,9 @@ void FObjectPainter::Reset(ULevel* InLevel)
 		AActor* Actor = Id2Actor[ActorId];
 		check(PaintObject(Actor, NewColor));
 	}
+}
+
+void FObjectPainter::Reset()
+{
+	Reset(this->Level);
 }
