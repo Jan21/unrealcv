@@ -1,0 +1,17 @@
+{
+  "ImportGroups":
+	[
+	{
+		"ImportSettings":
+		{
+				"GroupName": "sdsd",
+				"comment": "TArray<FString> Filenames;",
+				"DestinationPath": "C:\\0.ue4\\4.14.x_cpp\\android_bp1\\fbxFiles2Convert_clientXX11\\",
+				"FactoryName": "FbxFactory",
+				"bReplaceExisting": "true",
+				"bSkipReadOnly": "false",
+				"comment1": "Factory ssfsfs",
+		}	
+	}		
+	]	
+}
