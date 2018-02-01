@@ -23,6 +23,8 @@ public:
 
 	/** Reset this to uninitialized state */
 	void Reset(ULevel* InLevel);
+	void Reset();
+
 
 	/** Vertex paint one object with Flood-Fill */
 	bool PaintObject(AActor* Actor, const FColor& Color, bool IsColorGammaEncoded = true);
