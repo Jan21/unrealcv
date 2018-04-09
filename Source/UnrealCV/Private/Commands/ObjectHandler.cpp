@@ -1,307 +1,260 @@
+// Weichao Qiu @ 2017
 #include "UnrealCVPrivate.h"
 #include "ObjectHandler.h"
 #include "ObjectPainter.h"
-
+#include "ActorController.h"
+#include "VertexSensor.h"
+#include "StrFormatter.h"
 
 FExecStatus GetObjectMobility(const TArray<FString>& Args);
 
+AActor* GetActor(const TArray<FString>& Args);
+
+
+FExecStatus GetActorList(const TArray<FString>& Args);
+FExecStatus GetActorLocation(const TArray<FString>& Args);
+FExecStatus SetActorLocation(const TArray<FString>& Args);
+FExecStatus GetActorRotation(const TArray<FString>& Args);
+FExecStatus SetActorRotation(const TArray<FString>& Args);
+FExecStatus GetActorVertexLocation(const TArray<FString>& Args);
+FExecStatus GetActorAnnotationColor(const TArray<FString>& Args);
+FExecStatus SetActorAnnotationColor(const TArray<FString>& Args);
+FExecStatus GetActorMobility(const TArray<FString>& Args);
+FExecStatus SetShowActor(const TArray<FString>& Args);
+FExecStatus SetHideActor(const TArray<FString>& Args);
+
 void FObjectCommandHandler::RegisterCommands()
 {
-	FDispatcherDelegate Cmd;
-	FString Help;
+	CommandDispatcher->BindCommand(
+		"vget /objects",
+		FDispatcherDelegate::CreateStatic(GetActorList),
+		"Get the name of all objects"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::GetObjects);
-	Help = "Get the name of all objects";
-	CommandDispatcher->BindCommand(TEXT("vget /objects"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vget /object/[str]/location",
+		FDispatcherDelegate::CreateStatic(GetActorLocation),
+		"Get object location [x, y, z]"
+	);
 
-	// The order matters
-	// Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::CurrentObjectHandler); // Redirect to current
-	// CommandDispatcher->BindCommand(TEXT("[str] /object/_/[str]"), Cmd, "Get current object");
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/location [float] [float] [float]",
+		FDispatcherDelegate::CreateStatic(SetActorLocation),
+		"Set object location [x, y, z]"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::GetObjectColor);
-	Help = "Get the labeling color of an object (used in object instance mask)";
-	CommandDispatcher->BindCommand(TEXT("vget /object/[str]/color"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vget /object/[str]/rotation",
+		FDispatcherDelegate::CreateStatic(GetActorRotation),
+		"Get object rotation [pitch, yaw, roll]"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::SetObjectColor);
-	Help = "Set the labeling color of an object [r, g, b]";
-	CommandDispatcher->BindCommand(TEXT("vset /object/[str]/color [uint] [uint] [uint]"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/rotation [float] [float] [float]",
+		FDispatcherDelegate::CreateStatic(SetActorRotation),
+		"Set object rotation [pitch, yaw, roll]"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::GetObjectName);
-	Help = "[debug] Get the object name";
-	CommandDispatcher->BindCommand(TEXT("vget /object/[str]/name"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vget /object/[str]/vertex_location",
+		FDispatcherDelegate::CreateStatic(GetActorVertexLocation),
+		"Get vertex location"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::GetObjectLocation);
-	Help = "Get object location [x, y, z]";
-	CommandDispatcher->BindCommand(TEXT("vget /object/[str]/location"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vget /object/[str]/color",
+		FDispatcherDelegate::CreateStatic(GetActorAnnotationColor),
+		"Get the labeling color of an object (used in object instance mask)"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::GetObjectRotation);
-	Help = "Get object rotation [pitch, yaw, roll]";
-	CommandDispatcher->BindCommand(TEXT("vget /object/[str]/rotation"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/color [uint] [uint] [uint]",
+		FDispatcherDelegate::CreateStatic(SetActorAnnotationColor),
+		"Set the labeling color of an object [r, g, b]"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::SetObjectLocation);
-	Help = "Set object location [x, y, z]";
-	CommandDispatcher->BindCommand(TEXT("vset /object/[str]/location [float] [float] [float]"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vget /object/[str]/mobility",
+		FDispatcherDelegate::CreateStatic(GetActorMobility),
+		"Is the object static or movable?"
+	);
 
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::SetObjectRotation);
-	Help = "Set object rotation [pitch, yaw, roll]";
-	CommandDispatcher->BindCommand(TEXT("vset /object/[str]/rotation [float] [float] [float]"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/show",
+		FDispatcherDelegate::CreateStatic(SetShowActor),
+		"Show object"
+	);
 
-	Cmd = FDispatcherDelegate::CreateStatic(GetObjectMobility);
-	Help = "Is the object static or movable?";
-	CommandDispatcher->BindCommand(TEXT("vget /object/[str]/mobility"), Cmd, Help);
-
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::ShowObject);
-	Help = "Show object";
-	CommandDispatcher->BindCommand(TEXT("vset /object/[str]/show"), Cmd, Help);
-
-	Cmd = FDispatcherDelegate::CreateRaw(this, &FObjectCommandHandler::HideObject);
-	Help = "Hide object";
-	CommandDispatcher->BindCommand(TEXT("vset /object/[str]/hide"), Cmd, Help);
+	CommandDispatcher->BindCommand(
+		"vset /object/[str]/hide",
+		FDispatcherDelegate::CreateStatic(SetHideActor),
+		"Hide object"
+	);
 }
 
-FExecStatus FObjectCommandHandler::GetObjects(const TArray<FString>& Args)
+AActor* GetActor(const TArray<FString>& Args)
 {
-	return FObjectPainter::Get().GetObjectList();
+	FString ActorId = Args[0];
+	AActor* Actor = GetActorById(FUE4CVServer::Get().GetGameWorld(), ActorId);
+	return Actor;
 }
 
-FExecStatus FObjectCommandHandler::SetObjectColor(const TArray<FString>& Args)
+FExecStatus GetActorList(const TArray<FString>& Args)
 {
-	// ObjectName, R, G, B, A = 255
-	// The color format is RGBA
-	if (Args.Num() == 4)
+	UWorld* GameWorld = FUE4CVServer::Get().GetGameWorld();
+	TArray<AActor*> ActorList = GetActorPtrList(GameWorld);
+
+	FString StrActorList;
+	for (AActor* Actor : ActorList)
 	{
-		FString ObjectName = Args[0];
-		uint32 R = FCString::Atoi(*Args[1]), G = FCString::Atoi(*Args[2]), B = FCString::Atoi(*Args[3]), A = 255; // A = FCString::Atoi(*Args[4]);
-		FColor NewColor(R, G, B, A);
-
-		return FObjectPainter::Get().SetActorColor(ObjectName, NewColor);
+		StrActorList += FString::Printf(TEXT("%s "), *Actor->GetName());
 	}
-
-	return FExecStatus::InvalidArgument;
+	return FExecStatus::OK(StrActorList);
 }
 
-FExecStatus FObjectCommandHandler::GetObjectColor(const TArray<FString>& Args)
+FExecStatus GetActorLocation(const TArray<FString>& Args)
 {
-	if (Args.Num() == 1)
-	{
-		FString ObjectName = Args[0];
-		return FObjectPainter::Get().GetActorColor(ObjectName);
-	}
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
 
-	return FExecStatus::InvalidArgument;
-}
+	FActorController Controller(Actor);
+	FVector Location = Controller.GetLocation();
 
-FExecStatus FObjectCommandHandler::GetObjectName(const TArray<FString>& Args)
-{
-	if (Args.Num() == 1)
-	{
-		return FExecStatus::OK(Args[0]);
-	}
-	return FExecStatus::InvalidArgument;
-}
+	FStrFormatter Ar;
+	Ar << Location;
 
-FExecStatus FObjectCommandHandler::CurrentObjectHandler(const TArray<FString>& Args)
-{
-	// At least one parameter
-	if (Args.Num() >= 2)
-	{
-		FString Uri = "";
-		// Get the name of current object
-		FHitResult HitResult;
-		// The original version for the shooting game use CameraComponent
-		APawn* Pawn = FUE4CVServer::Get().GetPawn();
-		FVector StartLocation = Pawn->GetActorLocation();
-		// FRotator Direction = GetActorRotation();
-		FRotator Direction = Pawn->GetControlRotation();
-
-		FVector EndLocation = StartLocation + Direction.Vector() * 10000;
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(Pawn);
-
-		APlayerController* PlayerController = Cast<APlayerController>(Pawn->GetController());
-		if (PlayerController != nullptr)
-		{
-			FHitResult TraceResult(ForceInit);
-			PlayerController->GetHitResultUnderCursor(ECollisionChannel::ECC_WorldDynamic, false, TraceResult);
-			FString TraceString;
-			if (TraceResult.GetActor() != nullptr)
-			{
-				TraceString += FString::Printf(TEXT("Trace Actor %s."), *TraceResult.GetActor()->GetName());
-			}
-			if (TraceResult.GetComponent() != nullptr)
-			{
-				TraceString += FString::Printf(TEXT("Trace Comp %s."), *TraceResult.GetComponent()->GetName());
-			}
-			// TheHud->TraceResultText = TraceString;
-			// Character->ConsoleOutputDevice->Log(TraceString);
-		}
-		// TODO: This is not working well.
-
-		if (this->GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECC_Visibility, QueryParams))
-		{
-			AActor* HitActor = HitResult.GetActor();
-
-			// UE_LOG(LogUnrealCV, Warning, TEXT("%s"), *HitActor->GetActorLabel());
-			// Draw a bounding box of the hitted object and also output the name of it.
-			FString ActorName = HitActor->GetHumanReadableName();
-			FString Method = Args[0], Property = Args[1];
-			Uri = FString::Printf(TEXT("%s /object/%s/%s"), *Method, *ActorName, *Property); // Method name
-
-			for (int32 ArgIndex = 2; ArgIndex < Args.Num(); ArgIndex++) // Vargs
-			{
-				Uri += " " + Args[ArgIndex];
-			}
-			FExecStatus ExecStatus = CommandDispatcher->Exec(Uri);
-			return ExecStatus;
-		}
-		else
-		{
-			return FExecStatus::Error("Can not find current object");
-		}
-	}
-	return FExecStatus::InvalidArgument;
-}
-
-FExecStatus FObjectCommandHandler::GetObjectLocation(const TArray<FString>& Args)
-{
-	if (Args.Num() == 1)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
-
-		FVector Location = Object->GetActorLocation();
-		return FExecStatus::OK(FString::Printf(TEXT("%.2f %.2f %.2f"), Location.X, Location.Y, Location.Z));
-	}
-
-	return FExecStatus::InvalidArgument;
-}
-
-FExecStatus FObjectCommandHandler::GetObjectRotation(const TArray<FString>& Args)
-{
-	if (Args.Num() == 1)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
-
-		// TODO: support quaternion
-		FRotator Rotation = Object->GetActorRotation();
-		return FExecStatus::OK(FString::Printf(TEXT("%.2f %.2f %.2f"), Rotation.Pitch, Rotation.Yaw, Rotation.Roll));
-	}
-	return FExecStatus::InvalidArgument;
+	return FExecStatus::OK(Ar.ToString());
 }
 
 /** There is no guarantee this will always succeed, for example, hitting a wall */
-FExecStatus FObjectCommandHandler::SetObjectLocation(const TArray<FString>& Args)
+FExecStatus SetActorLocation(const TArray<FString>& Args)
 {
-	if (Args.Num() == 4)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
+	FActorController Controller(Actor);
 
-		// TODO: Check whether this object is movable
-		float X = FCString::Atof(*Args[1]), Y = FCString::Atof(*Args[2]), Z = FCString::Atof(*Args[3]);
-		FVector NewLocation = FVector(X, Y, Z);
-		bool Success = Object->SetActorLocation(NewLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	// TODO: Check whether this object is movable
+	float X = FCString::Atof(*Args[1]), Y = FCString::Atof(*Args[2]), Z = FCString::Atof(*Args[3]);
+	FVector NewLocation = FVector(X, Y, Z);
+	Controller.SetLocation(NewLocation);
 
-		if (Success)
-		{
-			return FExecStatus::OK();
-		}
-		else
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Failed to move object %s"), *ObjectName));
-		}
-	}
-	return FExecStatus::InvalidArgument;
+	return FExecStatus::OK();
 }
 
-FExecStatus FObjectCommandHandler::SetObjectRotation(const TArray<FString>& Args)
+FExecStatus GetActorRotation(const TArray<FString>& Args)
 {
-	if (Args.Num() == 4)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
 
-		// TODO: Check whether this object is movable
-		float Pitch = FCString::Atof(*Args[1]), Yaw = FCString::Atof(*Args[2]), Roll = FCString::Atof(*Args[3]);
-		FRotator Rotator = FRotator(Pitch, Yaw, Roll);
-		bool Success = Object->SetActorRotation(Rotator);
-		return FExecStatus::OK();
-	}
-	return FExecStatus::InvalidArgument;
+	FActorController Controller(Actor);
+	FRotator Rotation = Controller.GetRotation();
+
+	FStrFormatter Ar;
+	Ar << Rotation;
+
+	return FExecStatus::OK(Ar.ToString());
 }
 
-FExecStatus GetObjectMobility(const TArray<FString>& Args)
+FExecStatus SetActorRotation(const TArray<FString>& Args)
 {
-	if (Args.Num() == 1)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
+	FActorController Controller(Actor);
 
-		FString MobilityName = "";
-		EComponentMobility::Type Mobility = Object->GetRootComponent()->Mobility.GetValue();
-		switch (Mobility)
-		{
+	// TODO: Check whether this object is movable
+	float Pitch = FCString::Atof(*Args[1]), Yaw = FCString::Atof(*Args[2]), Roll = FCString::Atof(*Args[3]);
+	FRotator Rotator = FRotator(Pitch, Yaw, Roll);
+	Controller.SetRotation(Rotator);
+
+	return FExecStatus::OK();
+}
+
+FExecStatus GetActorVertexLocation(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	FVertexSensor VertexSensor(Actor);
+	TArray<FVector> VertexArray = VertexSensor.GetVertexArray();
+
+	// Serialize it to json?
+	FString Str = "";
+	for (auto Vertex : VertexArray)
+	{
+		FString VertexLocation = FString::Printf(
+			TEXT("%.5f     %.5f     %.5f"),
+			Vertex.X, Vertex.Y, Vertex.Z);
+		Str += VertexLocation + "\n";
+	}
+
+	return FExecStatus::OK(Str);
+}
+
+FExecStatus GetActorAnnotationColor(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
+	FActorController Controller(Actor);
+
+	FColor AnnotationColor;
+	bool bSuccess = Controller.GetAnnotationColor(AnnotationColor);
+	if (bSuccess)
+	{
+		return FExecStatus::OK(AnnotationColor.ToString());
+	}
+	else
+	{
+		return FExecStatus::Error("The annotation color is empty");
+	}
+}
+
+FExecStatus SetActorAnnotationColor(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
+	FActorController Controller(Actor);
+
+	// ObjectName, R, G, B, A = 255
+	// The color format is RGBA
+	uint32 R = FCString::Atoi(*Args[1]), G = FCString::Atoi(*Args[2]), B = FCString::Atoi(*Args[3]), A = 255; // A = FCString::Atoi(*Args[4]);
+	FColor AnnotationColor(R, G, B, A);
+
+	Controller.SetAnnotationColor(AnnotationColor);
+	return FExecStatus::OK();
+}
+
+FExecStatus GetActorMobility(const TArray<FString>& Args)
+{
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
+	FActorController Controller(Actor);
+
+	FString MobilityName = "";
+	EComponentMobility::Type Mobility = Controller.GetMobility();
+	switch (Mobility)
+	{
 		case EComponentMobility::Type::Movable: MobilityName = "Movable"; break;
 		case EComponentMobility::Type::Static: MobilityName = "Static"; break;
 		case EComponentMobility::Type::Stationary: MobilityName = "Stationary"; break;
 		default: MobilityName = "Unknown";
-		}
-		return FExecStatus::OK(MobilityName);
 	}
-	return FExecStatus::InvalidArgument;
+	return FExecStatus::OK(MobilityName);
 }
 
-FExecStatus FObjectCommandHandler::ShowObject(const TArray<FString>& Args)
+FExecStatus SetShowActor(const TArray<FString>& Args)
 {
-	if (Args.Num() == 1)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
 
-		Object->SetActorHiddenInGame(false);
-		return FExecStatus::OK();
-	}
-	return FExecStatus::InvalidArgument;
+	FActorController Controller(Actor);
+	Controller.Show();
+	return FExecStatus::OK();
 }
 
-FExecStatus FObjectCommandHandler::HideObject(const TArray<FString>& Args)
+FExecStatus SetHideActor(const TArray<FString>& Args)
 {
-	if (Args.Num() == 1)
-	{
-		FString ObjectName = Args[0];
-		AActor* Object = FObjectPainter::Get().GetObject(ObjectName);
-		if (Object == NULL)
-		{
-			return FExecStatus::Error(FString::Printf(TEXT("Can not find object %s"), *ObjectName));
-		}
+	AActor* Actor = GetActor(Args);
+	if (!Actor) return FExecStatus::Error("Can not find object");
 
-		Object->SetActorHiddenInGame(true);
-		return FExecStatus::OK();
-	}
-	return FExecStatus::InvalidArgument;
+	FActorController Controller(Actor);
+	Controller.Hide();
+	return FExecStatus::OK();
 }

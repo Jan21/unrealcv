@@ -24,7 +24,12 @@ public class UnrealcvBuildConfig
 		PrivateIncludePaths.AddRange(
 			new string[] {
                 "Editor/UnrealEd/Classes/Factories",
+				"UnrealCV/Private",
 				"UnrealCV/Private/Commands",
+				"UnrealCV/Private/Controller",
+				"UnrealCV/Private/Sensor",
+				"UnrealCV/Private/Sensor/CameraSensor",
+				"UnrealCV/Private/Utils",
 				"UnrealCV/Private/libs", // For 3rd-party libs
 			}
 		);
@@ -43,6 +48,9 @@ public class UnrealcvBuildConfig
 			"ImageWrapper",
 			"CinematicCamera",
 			"Projects", // Support IPluginManager
+			"RHI", // Support low-level RHI operation
+			"ShaderCore", // Shader support to resize image
+			"Json",
 		});
 
 		EditorPrivateDependencyModuleNames.AddRange(
