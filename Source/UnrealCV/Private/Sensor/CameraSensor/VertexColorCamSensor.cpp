@@ -13,7 +13,7 @@ UVertexColorCamSensor::UVertexColorCamSensor(const FObjectInitializer& ObjectIni
 	this->ShowFlags.SetHMDDistortion(false);
 	this->ShowFlags.SetTonemapper(false); // This won't take effect here
 
-	GVertexColorViewMode = EVertexColorViewMode::Color;
+	// GVertexColorViewMode = EVertexColorViewMode::Color;
 	// this->ShowFlags.SetRendering(false); // This will disable the rendering
 }
 
@@ -24,14 +24,14 @@ void UVertexColorCamSensor::OnRegister()
 	TextureTarget = NewObject<UTextureRenderTarget2D>(this);
 	// bool bUseLinearGamma = false;
 	bool bUseLinearGamma = true; // disable sRGB !
-	TextureTarget->InitCustomFormat(Width, Height, EPixelFormat::PF_B8G8R8A8, bUseLinearGamma);
+	TextureTarget->InitCustomFormat(FilmWidth, FilmHeight, EPixelFormat::PF_B8G8R8A8, bUseLinearGamma);
 	this->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-	this->bCaptureEveryFrame = true; // TODO: Check the performance overhead for this
+	this->bCaptureEveryFrame = false;
 	this->bCaptureOnMovement = false;
 }
 
-void UVertexColorCamSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Height)
-{
+
+
 	/*
 	UWorld* World = GetWorld();
 	bool bRequiresHitProxies = false;
@@ -46,8 +46,7 @@ void UVertexColorCamSensor::Capture(TArray<FColor>& ImageData, int& Width, int& 
 		FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
 		FStaticMeshSceneProxy* StaticMeshSceneProxy = dynamic_cast<FStaticMeshSceneProxy*>(PrimitiveSceneProxy);
 	}
-	*/
-	
+
 	//if (World && World->Scene && IsVisible())
 	//{
 	//	// We must push any deferred render state recreations before causing any rendering to happen, to make sure that deleted resource references are updated
@@ -55,4 +54,4 @@ void UVertexColorCamSensor::Capture(TArray<FColor>& ImageData, int& Width, int& 
 	//	World->Scene->UpdateSceneCaptureContents(this);
 	//}
 	// this->CaptureScene();
-}
+	*/

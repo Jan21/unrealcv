@@ -171,7 +171,7 @@ void BinaryArrayFromString(const FString& Message, TArray<uint8>& OutBinaryArray
 
 bool UNetworkManager::IsConnected()
 {
-	return (this->ConnectionSocket != NULL);
+	return (this->ConnectionSocket != nullptr);
 }
 
 /* Provide a dummy echo service to echo received data back for development purpose */
@@ -231,16 +231,17 @@ bool UNetworkManager::StartMessageService(FSocket* ClientSocket, const FIPv4Endp
 		}
 
 		// TODO: Start a new thread
-		while (this->ConnectionSocket) // Listening thread, while the client is still connected
+		while (ConnectionSocket) // Listening thread, while the client is still connected
 		{
 			FArrayReader ArrayReader;
-      bool unknown_error = false;
+			bool unknown_error = false;
 			if (!FSocketMessageHeader::ReceivePayload(ArrayReader, ConnectionSocket, &unknown_error))
 				// Wait forever until got a message, or return false when error happened
 			{
-        if (unknown_error) {
-          BroadcastError(FString("ReceivePayload failed with unknown error"));
-        }
+				if (unknown_error) 
+				{
+					BroadcastError(FString("ReceivePayload failed with unknown error"));
+				}
 				this->ConnectionSocket = NULL;
 				return false; // false will release the ClientSocket
 				break; // Remote socket disconnected
@@ -283,11 +284,10 @@ bool UNetworkManager::Start(int32 InPortNum) // Restart the server if configurat
 		ConnectionSocket = NULL;
 	}
 
-	if (TcpListener) // Delete previous configuration first
+	if (TcpListener.IsValid()) // Delete previous configuration first
 	{
 		UE_LOG(LogUnrealCV, Warning, TEXT("Stop previous server"));
 		TcpListener->Stop(); // TODO: test the robustness, will this operation successful?
-		delete TcpListener;
 	}
 
 	this->PortNum = InPortNum; // Start a new TCPListener
@@ -312,7 +312,7 @@ bool UNetworkManager::Start(int32 InPortNum) // Restart the server if configurat
 		return false;
 	}
 
-	TcpListener = new FTcpListener(*ServerSocket);
+	TcpListener = TSharedPtr<FTcpListener>(new FTcpListener(*ServerSocket));
 	// TcpListener = new FTcpListener(Endpoint); // This will be released after start
 	// In FSocket, when a FSocket is set as reusable, it means SO_REUSEADDR, not SO_REUSEPORT.  see SocketsBSD.cpp
 	TcpListener->OnConnectionAccepted().BindUObject(this, &UNetworkManager::Connected);
@@ -358,9 +358,4 @@ bool UNetworkManager::SendData(const TArray<uint8>& Payload)
 
 UNetworkManager::~UNetworkManager()
 {
-	if (ConnectionSocket)
-	{
-		ConnectionSocket->Close();
-	}
-	delete TcpListener;
 }

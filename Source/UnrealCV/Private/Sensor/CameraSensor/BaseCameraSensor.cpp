@@ -17,24 +17,27 @@ DECLARE_CYCLE_STAT(TEXT("ReadBufferFast"), STAT_ReadBufferFast, STATGROUP_Unreal
 
 FImageWorker UBaseCameraSensor::ImageWorker;
 
-UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer), Width(640), Height(480)
+UBaseCameraSensor::UBaseCameraSensor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
+	// static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("StaticMesh'/Engine/EditorMeshes/Camera/SM_CineCam.SM_CineCam'"));
 	CameraMesh = EditorCameraMesh.Object;
-	// From UCameraComponent
-	// static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorCameraMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
-	// CameraMesh = EditorCameraMesh.Object;
 
-	// bool bTransient = true;
-	// TextureTarget = ObjectInitializer.CreateDefaultSubobject<UTextureRenderTarget2D>(this, TEXT("TextureRenderTarget2D"));
-	// TextureTarget->InitAutoFormat(640, 480);
-
-
+	this->ShowFlags.SetPostProcessing(true);
+	
+	FServerConfig& Config = FUE4CVServer::Get().Config;
+	FilmWidth = Config.Width;
+	FilmHeight = Config.Height; 
+	this->FOVAngle = Config.FOV;
 }
 
 void UBaseCameraSensor::OnRegister()
 {
 	Super::OnRegister();
+
+	// Explicitly make a request to render frames
+	this->bCaptureEveryFrame = false;
+	this->bCaptureOnMovement = false;
 
 	// Add a visualization camera mesh
 	if (GetOwner()) // Check whether this is a template project
@@ -70,7 +73,7 @@ This is defined in FColor
 	uint8 G,R,A;
 */
 
-void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Height)
+void UBaseCameraSensor::CaptureFast(TArray<FColor>& ImageData, int& Width, int& Height)
 {
 	TFunction<void(FColor*, int32, int32)> Callback = [&](FColor* ColorPtr, int InWidth, int InHeight)
 	{
@@ -87,14 +90,26 @@ void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Heig
 			DestPtr += Width;
 		}
 	};
+
+	this->CaptureScene();
+	if (TextureTarget == nullptr)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("TextureTarget has not been initialized"));
+		return;
+	}
 	FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
+	if (RenderTargetResource == nullptr)
+	{
+		UE_LOG(LogUnrealCV, Warning, TEXT("RenderTargetResource is nullptr"));
+		return;
+	}
 	FTexture2DRHIRef Texture2D = RenderTargetResource->GetRenderTargetTexture();
 	FastReadTexture2DAsync(Texture2D, Callback);
 	FlushRenderingCommands(); // Ensure the callback is done
 }
 
 
-void UBaseCameraSensor::CaptureAsync(const FString& Filename)
+void UBaseCameraSensor::CaptureToFile(const FString& Filename)
 {
 	auto Callback = [=](FColor* ColorBuffer, int Width, int Height)
 	{
@@ -114,41 +129,47 @@ void UBaseCameraSensor::CaptureAsync(const FString& Filename)
 		// ImageUtil.SaveBmpFile(Dest, Width, Height, FString::Printf(TEXT("%s_%d.bmp"), *Filename, GFrameNumber));
 		ImageUtil.SaveBmpFile(Dest, Width, Height, Filename);
 	};
-
+	this->CaptureScene();
 	check(this->TextureTarget);
 	FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
 	FTexture2DRHIRef Texture2D = RenderTargetResource->GetRenderTargetTexture();
 	FastReadTexture2DAsync(Texture2D, Callback);
 }
 
-void UBaseCameraSensor::CaptureSlow(TArray<FColor>& ImageData, int& Width, int& Height)
+void UBaseCameraSensor::Capture(TArray<FColor>& ImageData, int& Width, int& Height)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ReadBuffer);
 
+	this->CaptureScene();
 	check(this->TextureTarget);
 	UTextureRenderTarget2D* RenderTarget = this->TextureTarget;
 	ReadTextureRenderTarget(RenderTarget, ImageData, Width, Height);
 }
 
-/** Get the location in unrealcv format */
-FVector UBaseCameraSensor::GetSensorWorldLocation()
-{
-	FVector ComponentLocation = this->GetComponentLocation();
-	return ComponentLocation;
-}
-
-FRotator UBaseCameraSensor::GetSensorRotation()
-{
-	FRotator Rotation = this->GetComponentRotation();
-	return Rotation;
-}
-
-void UBaseCameraSensor::SetFOV(float FOV)
-{
-	this->FOVAngle = FOV;
-}
-
 void UBaseCameraSensor::SetPostProcessMaterial(UMaterial* PostProcessMaterial)
 {
 	PostProcessSettings.AddBlendable(PostProcessMaterial, 1);
+}
+
+void UBaseCameraSensor::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView)
+{
+	DesiredView.Location = GetComponentLocation();
+	DesiredView.Rotation = GetComponentRotation();
+	DesiredView.FOV = this->FOVAngle;
+	// DesiredView.FOV = FieldOfView;
+	// DesiredView.bConstrainAspectRatio = bConstrainAspectRatio;
+	// DesiredView.bUseFieldOfViewForLOD = bUseFieldOfViewForLOD;
+	// DesiredView.ProjectionMode = ProjectionMode;
+	DesiredView.ProjectionMode = ECameraProjectionMode::Perspective;
+	DesiredView.OrthoWidth = OrthoWidth;
+	// DesiredView.OrthoNearClipPlane = OrthoNearClipPlane;
+	// DesiredView.OrthoFarClipPlane = OrthoFarClipPlane;
+
+	// See if the CameraActor wants to override the PostProcess settings used.
+	DesiredView.PostProcessBlendWeight = PostProcessBlendWeight;
+	if (PostProcessBlendWeight > 0.0f)
+	{
+		DesiredView.PostProcessSettings = PostProcessSettings;
+	}
+
 }

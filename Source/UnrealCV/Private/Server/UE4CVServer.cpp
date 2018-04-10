@@ -4,11 +4,11 @@
 #include "ConsoleHelper.h"
 #include "ObjectPainter.h"
 #include "CaptureManager.h"
-#include "CameraHandler.h"
 #include "ObjectHandler.h"
 #include "PluginHandler.h"
 #include "ActionHandler.h"
 #include "AliasHandler.h"
+#include "SensorHandler.h"
 #if WITH_EDITOR
 #include "UnrealEd.h"
 #endif
@@ -67,14 +67,14 @@ FUE4CVServer& FUE4CVServer::Get()
 void FUE4CVServer::RegisterCommandHandlers()
 {
 	// Taken from ctor, because might cause loop-invoke.
-	CommandHandlers.Add(new FObjectCommandHandler(CommandDispatcher));
-	CommandHandlers.Add(new FCameraCommandHandler(CommandDispatcher));
-	CommandHandlers.Add(new FPluginCommandHandler(CommandDispatcher));
-	CommandHandlers.Add(new FActionCommandHandler(CommandDispatcher));
-	CommandHandlers.Add(new FAliasCommandHandler(CommandDispatcher));
-	CommandHandlers.Add(new FSensorHandler(CommandDispatcher));
+	CommandHandlers.Add(new FObjectCommandHandler());
+	CommandHandlers.Add(new FPluginCommandHandler());
+	CommandHandlers.Add(new FActionCommandHandler());
+	CommandHandlers.Add(new FAliasCommandHandler());
+	CommandHandlers.Add(new FSensorHandler());
 	for (FCommandHandler* Handler : CommandHandlers)
 	{
+		Handler->CommandDispatcher = CommandDispatcher;
 		Handler->RegisterCommands();
 	}
 }
@@ -83,7 +83,7 @@ FUE4CVServer::FUE4CVServer()
 {
 	// Code defined here should not use FUE4CVServer::Get();
 	NetworkManager = NewObject<UNetworkManager>();
-	CommandDispatcher = new FCommandDispatcher();
+	CommandDispatcher = TSharedPtr<FCommandDispatcher>(new FCommandDispatcher());
 	FConsoleHelper::Get().SetCommandDispatcher(CommandDispatcher);
 
 	NetworkManager->AddToRoot(); // Avoid GC
@@ -101,17 +101,17 @@ UWorld* FUE4CVServer::GetGameWorld()
 	UWorld* World = nullptr;
 	// The correct way to get GameWorld;
 #if WITH_EDITOR
-	UEditorEngine* EditorEngine = Cast<UEditorEngine>(GEngine); // TODO: check which macro can determine whether I am in editor
+	UEditorEngine* EditorEngine = Cast<UEditorEngine>(GEngine);
 	if (EditorEngine != nullptr)
 	{
 		World = EditorEngine->PlayWorld;
-		if (World != nullptr && World->IsValidLowLevel() && World->IsGameWorld())
+		if (IsValid(World) && World->IsGameWorld())
 		{
 			return World;
 		}
 		else
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("Can not get PlayWorld from EditorEngine"));
+			// UE_LOG(LogUnrealCV, Error, TEXT("Can not get PlayWorld from EditorEngine"));
 			return nullptr;
 		}
 	}
@@ -121,13 +121,13 @@ UWorld* FUE4CVServer::GetGameWorld()
 	if (GameEngine != nullptr)
 	{
 		World = GameEngine->GetGameWorld();
-		if (World != nullptr && World->IsValidLowLevel())
+		if (IsValid(World))
 		{
 			return World;
 		}
 		else
 		{
-			UE_LOG(LogUnrealCV, Error, TEXT("Can not get GameWorld from GameEngine"));
+			// UE_LOG(LogUnrealCV, Error, TEXT("Can not get GameWorld from GameEngine"));
 			return nullptr;
 		}
 	}
