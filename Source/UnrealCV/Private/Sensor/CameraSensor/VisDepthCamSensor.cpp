@@ -28,9 +28,9 @@ void UVisDepthCamSensor::OnRegister()
 
 	bool bUseLinearGamma = true;
     // TODO: Check whether InitAutoFormat = Float + UseLinearGamma?
-	TextureTarget->InitCustomFormat(Width, Height, EPixelFormat::PF_FloatRGBA, bUseLinearGamma);
+	TextureTarget->InitCustomFormat(FilmWidth, FilmHeight, EPixelFormat::PF_FloatRGBA, bUseLinearGamma);
 
 	this->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-	this->bCaptureEveryFrame = true;
+	this->bCaptureEveryFrame = false;
 	this->bCaptureOnMovement = false;
 }

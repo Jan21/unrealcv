@@ -8,13 +8,21 @@ UDepthCamSensor::UDepthCamSensor(const FObjectInitializer& ObjectInitializer) :
 
 }
 
-void UDepthCamSensor::CaptureDepth(TArray<FFloat16Color>& DepthData, int& Width, int& Height)
+void UDepthCamSensor::CaptureDepth(TArray<float>& DepthData, int& Width, int& Height)
 {
 	this->CaptureScene();
 	Width = this->TextureTarget->SizeX, Height = TextureTarget->SizeY;
-	DepthData.AddZeroed(Width * Height);
+	DepthData.AddZeroed(Width * Height); // or AddUninitialized(FloatColorDepthData.Num());
 	FTextureRenderTargetResource* RenderTargetResource = this->TextureTarget->GameThread_GetRenderTargetResource();
-	RenderTargetResource->ReadFloat16Pixels(DepthData);
+	TArray<FFloat16Color> FloatColorDepthData;
+	RenderTargetResource->ReadFloat16Pixels(FloatColorDepthData);
+
+	// TODO: Find a faster way to chunk a channel
+	for (int i = 0; i < FloatColorDepthData.Num(); i++)
+	{
+		FFloat16Color& FloatColor = FloatColorDepthData[i];
+		DepthData[i] = FloatColor.R;
+	}
 }
 
 void UDepthCamSensor::OnRegister()
@@ -25,7 +33,7 @@ void UDepthCamSensor::OnRegister()
 
 	bool bUseLinearGamma = true;
 	// TextureTarget->InitCustomFormat(Width, Height, EPixelFormat::PF_B8G8R8A8, bUseLinearGamma);
-	TextureTarget->InitCustomFormat(Width, Height, EPixelFormat::PF_FloatRGBA, bUseLinearGamma);
+	TextureTarget->InitCustomFormat(FilmWidth, FilmHeight, EPixelFormat::PF_FloatRGBA, bUseLinearGamma);
 
 	// this->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	this->CaptureSource = ESceneCaptureSource::SCS_SceneDepth;
