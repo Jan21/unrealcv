@@ -113,7 +113,7 @@ FExecStatus FModelCommandHandler::LoadSceneFromJson(const TArray<FString>& Path)
 		CreateLight(liInfo);
 	}
 
-	FObjectPainter::Get().Reset();
+	//FObjectPainter::Get().Reset();
 	return FExecStatus::OK();
 
 

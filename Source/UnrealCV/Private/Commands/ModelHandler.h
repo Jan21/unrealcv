@@ -1,5 +1,6 @@
 #pragma once
 #include "CommandDispatcher.h"
+#include "CommandHandler.h"
 
 class FModelCommandHandler : public FCommandHandler
 {
@@ -7,7 +8,7 @@ private:
 	AStaticMeshActor* LoadedScene;
 	UStaticMeshComponent* LoadedSceneComp;
 public:
-	FModelCommandHandler(FCommandDispatcher* InCommandDispatcher) : FCommandHandler(InCommandDispatcher)
+	FModelCommandHandler() : FCommandHandler()
 	{}
 	void RegisterCommands();
 
